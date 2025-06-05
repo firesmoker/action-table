@@ -5,7 +5,10 @@ const MOVE_ORDER = { standstill: 2, moving: 1 };
 
 export default function ActionTableApp() {
   // Actor list state
-  const [actors, setActors] = useState(["Alice", "Bob"]);
+  const [actors, setActors] = useState([
+    { name: "Alice", type: "Player" },
+    { name: "Bob", type: "Player" },
+  ]);
 
   // Action rows state
   const [rows, setRows] = useState([
@@ -30,18 +33,27 @@ export default function ActionTableApp() {
   ]);
 
   function addActor() {
-    setActors((old) => [...old, ""]);
+    setActors((old) => [...old, { name: "", type: "Player" }]);
   }
   function removeActor(index) {
     setActors((old) => old.filter((_, i) => i !== index));
     setRows((old) =>
-      old.map((r) => (r.actor === actors[index] ? { ...r, actor: "" } : r))
+      old.map((r) =>
+        r.actor === actors[index].name ? { ...r, actor: "" } : r
+      )
     );
   }
   function updateActorName(index, val) {
     setActors((old) => {
       const copy = [...old];
-      copy[index] = val;
+      copy[index] = { ...copy[index], name: val };
+      return copy;
+    });
+  }
+  function updateActorType(index, val) {
+    setActors((old) => {
+      const copy = [...old];
+      copy[index] = { ...copy[index], type: val };
       return copy;
     });
   }
@@ -78,7 +90,18 @@ export default function ActionTableApp() {
       if (MOVE_ORDER[b.moveState] !== MOVE_ORDER[a.moveState]) {
         return MOVE_ORDER[b.moveState] - MOVE_ORDER[a.moveState];
       }
-      return Number(b.initiative) - Number(a.initiative);
+      if (Number(b.initiative) !== Number(a.initiative)) {
+        return Number(b.initiative) - Number(a.initiative);
+      }
+      // If tied, Players before NPCs
+      const actorA = actors.find((actor) => actor.name === a.actor);
+      const actorB = actors.find((actor) => actor.name === b.actor);
+      if (actorA && actorB) {
+        if (actorA.type !== actorB.type) {
+          return actorA.type === "Player" ? -1 : 1;
+        }
+      }
+      return 0;
     });
     setRows(sorted);
   }
@@ -171,7 +194,6 @@ export default function ActionTableApp() {
             alignItems: "center",
           }}
         >
-          <h2 style={{ margin: 0 }}>Actions</h2>
           <button style={buttonStyle} onClick={sortRows}>
             Sort
           </button>
@@ -202,8 +224,8 @@ export default function ActionTableApp() {
                       Select actor
                     </option>
                     {actors.map((a, i) => (
-                      <option key={i} value={a}>
-                        {a || "(empty)"}
+                      <option key={i} value={a.name}>
+                        {a.name || "(empty)"}
                       </option>
                     ))}
                   </select>
@@ -305,14 +327,22 @@ export default function ActionTableApp() {
           >
             <input
               type="text"
-              value={actor}
+              value={actor.name}
               onChange={(e) => updateActorName(i, e.target.value)}
               placeholder={`Actor ${i + 1} name`}
               style={{ ...inputStyle, flexGrow: 1 }}
             />
+            <select
+              value={actor.type}
+              onChange={(e) => updateActorType(i, e.target.value)}
+              style={{ ...selectStyle, width: 90 }}
+            >
+              <option value="Player">Player</option>
+              <option value="NPC">NPC</option>
+            </select>
             <button
               onClick={() => removeActor(i)}
-              aria-label={`Remove actor ${actor || "empty"}`}
+              aria-label={`Remove actor ${actor.name || "empty"}`}
               style={removeButtonStyle}
               type="button"
             >
