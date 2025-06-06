@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function ActionTableApp() {
   const [actors, setActors] = useState([
     { name: "Alice", type: "Player" },
     { name: "Bob", type: "Player" },
   ]);
-
   const [rows, setRows] = useState([]);
   const [activeTab, setActiveTab] = useState("combat"); // Manage active tab
+  const [savedActors, setSavedActors] = useState([]); // State for saved actors
+  const [showSavedActorDropdown, setShowSavedActorDropdown] = useState(false); // Toggle dropdown visibility
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Manage dropdown expanded state
+
+  const dropdownRef = useRef(null); // Reference for the dropdown
 
   // Synchronize rows with actors
   useEffect(() => {
@@ -36,6 +40,43 @@ export default function ActionTableApp() {
       );
     });
   }, [actors]);
+
+  // Handle clicks outside the dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowSavedActorDropdown(false); // Hide dropdown when clicking outside
+        setDropdownOpen(false); // Close dropdown
+      }
+    }
+
+    if (showSavedActorDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showSavedActorDropdown]);
+
+  // Load saved actors from localStorage on component mount
+  useEffect(() => {
+    const storedSavedActors = localStorage.getItem("savedActors");
+    if (storedSavedActors) {
+      setSavedActors(JSON.parse(storedSavedActors));
+    }
+  }, []);
+
+  // Save saved actors to localStorage whenever it changes
+  useEffect(() => {
+    if (savedActors.length > 0) {
+      localStorage.setItem("savedActors", JSON.stringify(savedActors));
+    } else {
+      localStorage.removeItem("savedActors"); // Clean up if no saved actors
+    }
+  }, [savedActors]);
 
   function addActor() {
     setActors((old) => [...old, { name: "", type: "NPC" }]);
@@ -169,6 +210,27 @@ export default function ActionTableApp() {
     fontSize: 16,
     fontWeight: "bold",
   });
+
+  function addSavedActor() {
+    setSavedActors((old) => [
+      ...old,
+      { actor: "", type: "NPC", hostility: "Neutral" },
+    ]);
+  }
+
+  function updateSavedActor(index, field, value) {
+    setSavedActors((old) =>
+      old.map((actor, i) =>
+        i === index ? { ...actor, [field]: value } : actor
+      )
+    );
+  }
+
+  function addSavedActorToActors(savedActor) {
+    setActors((old) => [...old, { name: savedActor.actor, type: savedActor.type }]);
+    setShowSavedActorDropdown(false); // Hide dropdown after adding
+    setDropdownOpen(false); // Close dropdown
+  }
 
   return (
     <div>
@@ -338,13 +400,66 @@ export default function ActionTableApp() {
                 </button>
               </div>
             ))}
-            <button
-              onClick={addActor}
-              style={{ ...buttonStyle, marginTop: 12, width: "100%" }}
-              type="button"
-            >
-              + Add Actor
-            </button>
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={addActor}
+                style={{ ...buttonStyle, flexGrow: 1 }}
+                type="button"
+              >
+                + Add Actor
+              </button>
+
+              {!showSavedActorDropdown ? (
+                <button
+                  onClick={() => {
+                    setShowSavedActorDropdown(true);
+                    setDropdownOpen(true); // Simulate dropdown being clicked
+                  }}
+                  style={{ ...buttonStyle, flexGrow: 1 }}
+                  type="button"
+                >
+                  + Add a Saved Actor
+                </button>
+              ) : (
+                <div ref={dropdownRef} style={{ position: "relative", flexGrow: 1 }}>
+                  <div
+                    style={{
+                      border: "1px solid #ccc",
+                      borderRadius: 4,
+                      backgroundColor: "white",
+                      position: "absolute",
+                      zIndex: 10,
+                      width: "100%",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                    }}
+                  >
+                    {savedActors.map((actor, index) => (
+                      <div
+                        key={index}
+                        onClick={() => {
+                          addSavedActorToActors(actor);
+                        }}
+                        style={{
+                          padding: "8px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #eee",
+                          backgroundColor: "white", // Default background
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = "#f0f0f0"; // Highlight on hover
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = "white"; // Reset background
+                        }}
+                      >
+                        {actor.actor || "(Unnamed)"} - {actor.type}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -352,7 +467,64 @@ export default function ActionTableApp() {
       {activeTab === "savedActors" && (
         <div>
           <h2>Saved Actors</h2>
-          <p>This tab is currently blank.</p>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Actor</th>
+                <th style={thStyle}>Type</th>
+                <th style={thStyle}>Hostility</th>
+              </tr>
+            </thead>
+            <tbody>
+              {savedActors.map((actor, index) => (
+                <tr key={index}>
+                  <td style={tdStyle}>
+                    <input
+                      type="text"
+                      value={actor.actor}
+                      onChange={(e) =>
+                        updateSavedActor(index, "actor", e.target.value)
+                      }
+                      placeholder="Actor Name"
+                      style={inputStyle}
+                    />
+                  </td>
+                  <td style={tdStyle}>
+                    <select
+                      value={actor.type}
+                      onChange={(e) =>
+                        updateSavedActor(index, "type", e.target.value)
+                      }
+                      style={selectStyle}
+                    >
+                      <option value="NPC">NPC</option>
+                      <option value="Player">Player</option>
+                    </select>
+                  </td>
+                  <td style={tdStyle}>
+                    <select
+                      value={actor.hostility}
+                      onChange={(e) =>
+                        updateSavedActor(index, "hostility", e.target.value)
+                      }
+                      style={selectStyle}
+                    >
+                      <option value="Neutral">Neutral</option>
+                      <option value="Friendly">Friendly</option>
+                      <option value="Hostile">Hostile</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            onClick={addSavedActor}
+            style={{ ...buttonStyle, marginTop: 12 }}
+            type="button"
+          >
+            + Add Saved Actor
+          </button>
         </div>
       )}
     </div>
