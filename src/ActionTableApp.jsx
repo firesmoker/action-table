@@ -10,8 +10,10 @@ export default function ActionTableApp() {
   const [savedActors, setSavedActors] = useState([]); // State for saved actors
   const [showSavedActorDropdown, setShowSavedActorDropdown] = useState(false); // Toggle dropdown visibility
   const [dropdownOpen, setDropdownOpen] = useState(false); // Manage dropdown expanded state
+  const [expandedRows, setExpandedRows] = useState([]); // Track expanded rows
 
   const dropdownRef = useRef(null); // Reference for the dropdown
+  const newActorInputRef = useRef(null); // Ref for the new actor input field
 
   // Synchronize rows with actors
   useEffect(() => {
@@ -212,10 +214,20 @@ export default function ActionTableApp() {
   });
 
   function addSavedActor() {
-    setSavedActors((old) => [
-      ...old,
-      { actor: "", type: "NPC", hostility: "Neutral" },
-    ]);
+    setSavedActors((old) => {
+      const updatedActors = [
+        ...old,
+        { actor: "", type: "NPC", hostility: "Neutral", unique: false },
+      ];
+      return updatedActors;
+    });
+
+    // Delay focusing to ensure the new actor is rendered
+    setTimeout(() => {
+      if (newActorInputRef.current) {
+        newActorInputRef.current.focus();
+      }
+    }, 0);
   }
 
   function updateSavedActor(index, field, value) {
@@ -230,6 +242,14 @@ export default function ActionTableApp() {
     setActors((old) => [...old, { name: savedActor.actor, type: savedActor.type }]);
     setShowSavedActorDropdown(false); // Hide dropdown after adding
     setDropdownOpen(false); // Close dropdown
+  }
+
+  function toggleRowExpansion(index) {
+    setExpandedRows((prev) =>
+      prev.includes(index)
+        ? prev.filter((i) => i !== index) // Collapse if already expanded
+        : [...prev, index] // Expand if not already expanded
+    );
   }
 
   return (
@@ -260,11 +280,11 @@ export default function ActionTableApp() {
                 <tr>
                   <th style={thStyle}></th>
                   <th style={thStyle}>Actor</th>
+                  <th style={thStyle}>Initiative</th> {/* Moved Initiative column */}
                   <th style={thStyle}>Action</th>
                   <th style={thStyle}>Target</th>
                   <th style={thStyle}>Speed</th>
                   <th style={thStyle}>Standstill / Moving</th>
-                  <th style={thStyle}>Initiative</th>
                   <th style={thStyle} aria-label="Remove row"></th>
                 </tr>
               </thead>
@@ -293,6 +313,18 @@ export default function ActionTableApp() {
                       </select>
                     </td>
                     <td style={tdStyle}>
+                      <select
+                        value={row.initiative} // Initiative field
+                        onChange={(e) => updateRow(row.id, "initiative", e.target.value)}
+                        style={selectStyle}
+                      >
+                        <option value="0">0</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                      </select>
+                    </td>
+                    <td style={tdStyle}>
                       <input
                         type="text"
                         value={row.action}
@@ -317,9 +349,7 @@ export default function ActionTableApp() {
                     <td style={tdStyle}>
                       <select
                         value={row.speed}
-                        onChange={(e) =>
-                          updateRow(row.id, "speed", e.target.value)
-                        }
+                        onChange={(e) => updateRow(row.id, "speed", e.target.value)}
                         style={selectStyle}
                       >
                         <option value="fast">fast</option>
@@ -330,30 +360,13 @@ export default function ActionTableApp() {
                     <td style={tdStyle}>
                       <select
                         value={row.moveState}
-                        onChange={(e) =>
-                          updateRow(row.id, "moveState", e.target.value)
-                        }
+                        onChange={(e) => updateRow(row.id, "moveState", e.target.value)}
                         style={selectStyle}
                       >
                         <option value="standstill">standstill</option>
                         <option value="moving">moving</option>
                       </select>
                     </td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.initiative}
-                        onChange={(e) =>
-                          updateRow(row.id, "initiative", e.target.value)
-                        }
-                        style={selectStyle}
-                      >
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                      </select>
-                    </td>
-                    {/* Removed the "Remove Action" button */}
                   </tr>
                 ))}
               </tbody>
@@ -412,11 +425,30 @@ export default function ActionTableApp() {
               {!showSavedActorDropdown ? (
                 <button
                   onClick={() => {
-                    setShowSavedActorDropdown(true);
-                    setDropdownOpen(true); // Simulate dropdown being clicked
+                    if (savedActors.some((actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor)))) {
+                      setShowSavedActorDropdown(true);
+                    }
                   }}
-                  style={{ ...buttonStyle, flexGrow: 1 }}
+                  style={{
+                    ...buttonStyle,
+                    flexGrow: 1,
+                    backgroundColor: savedActors.some(
+                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
+                    )
+                      ? "#1e90ff" // Enabled color
+                      : "#ccc", // Disabled grey color
+                    cursor: savedActors.some(
+                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
+                    )
+                      ? "pointer"
+                      : "not-allowed", // Change cursor when disabled
+                  }}
                   type="button"
+                  disabled={
+                    !savedActors.some(
+                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
+                    )
+                  }
                 >
                   + Add a Saved Actor
                 </button>
@@ -434,28 +466,33 @@ export default function ActionTableApp() {
                       overflowY: "auto",
                     }}
                   >
-                    {savedActors.map((actor, index) => (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          addSavedActorToActors(actor);
-                        }}
-                        style={{
-                          padding: "8px",
-                          cursor: "pointer",
-                          borderBottom: "1px solid #eee",
-                          backgroundColor: "white", // Default background
-                        }}
-                        onMouseEnter={(e) => {
-                          e.target.style.backgroundColor = "#f0f0f0"; // Highlight on hover
-                        }}
-                        onMouseLeave={(e) => {
-                          e.target.style.backgroundColor = "white"; // Reset background
-                        }}
-                      >
-                        {actor.actor || "(Unnamed)"} - {actor.type}
-                      </div>
-                    ))}
+                    {savedActors
+                      .filter(
+                        (actor) =>
+                          !(actor.unique && rows.some((row) => row.actor === actor.actor))
+                      )
+                      .map((actor, index) => (
+                        <div
+                          key={index}
+                          onClick={() => {
+                            addSavedActorToActors(actor);
+                          }}
+                          style={{
+                            padding: "8px",
+                            cursor: "pointer",
+                            borderBottom: "1px solid #eee",
+                            backgroundColor: "white", // Default background
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = "#f0f0f0"; // Highlight on hover
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = "white"; // Reset background
+                          }}
+                        >
+                          {actor.actor || "(Unnamed)"} - {actor.type}
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
@@ -470,14 +507,30 @@ export default function ActionTableApp() {
           <table style={tableStyle}>
             <thead>
               <tr>
+                <th style={thStyle}></th>
                 <th style={thStyle}>Actor</th>
                 <th style={thStyle}>Type</th>
                 <th style={thStyle}>Hostility</th>
+                <th style={thStyle}>Unique</th>
               </tr>
             </thead>
             <tbody>
               {savedActors.map((actor, index) => (
                 <tr key={index}>
+                  <td style={tdStyle}>
+                    <button
+                      onClick={() => toggleRowExpansion(index)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: 16,
+                      }}
+                      aria-label={`Toggle details for ${actor.actor || "Unnamed"}`}
+                    >
+                      {expandedRows.includes(index) ? "▼" : "▶"}
+                    </button>
+                  </td>
                   <td style={tdStyle}>
                     <input
                       type="text"
@@ -487,6 +540,11 @@ export default function ActionTableApp() {
                       }
                       placeholder="Actor Name"
                       style={inputStyle}
+                      ref={
+                        index === savedActors.length - 1
+                          ? newActorInputRef
+                          : null
+                      } // Attach ref to the last actor
                     />
                   </td>
                   <td style={tdStyle}>
@@ -513,6 +571,72 @@ export default function ActionTableApp() {
                       <option value="Friendly">Friendly</option>
                       <option value="Hostile">Hostile</option>
                     </select>
+                  </td>
+                  <td style={tdStyle}>
+                    <label style={{ display: "inline-block", position: "relative", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={actor.unique || false}
+                        onChange={(e) =>
+                          updateSavedActor(index, "unique", e.target.checked)
+                        }
+                        style={{
+                          opacity: 0, // Hide the default checkbox
+                          position: "absolute",
+                          left: 0,
+                          top: 0,
+                          width: "100%",
+                          height: "100%",
+                          cursor: "pointer",
+                          zIndex: 1, // Ensure it is clickable
+                        }}
+                      />
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 16,
+                          height: 16,
+                          backgroundColor: "white", // White background when unchecked
+                          border: "1px solid #ccc",
+                          borderRadius: 4,
+                          position: "relative",
+                        }}
+                      >
+                        {actor.unique && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "50%",
+                              left: "50%",
+                              transform: "translate(-50%, -50%)",
+                              width: 10, // Adjusted size for better fit
+                              height: 10, // Adjusted size for better fit
+                              backgroundColor: "#1e90ff", // Blue checkmark
+                              borderRadius: 2, // Slight rounding for better appearance
+                            }}
+                          ></span>
+                        )}
+                      </span>
+                    </label>
+                  </td>
+                  <td style={tdStyle}>
+                    <button
+                      onClick={() => {
+                        setSavedActors((old) => old.filter((_, i) => i !== index));
+                      }}
+                      style={{
+                        backgroundColor: "#ff4d4f",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 4,
+                        cursor: "pointer",
+                        padding: "4px 8px",
+                        fontSize: 14,
+                      }}
+                      aria-label={`Remove saved actor ${actor.actor || "Unnamed"}`}
+                    >
+                      &minus;
+                    </button>
                   </td>
                 </tr>
               ))}
