@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import CombatTab from "./CombatTab";
+import SavedActorsTab from "./SavedActorsTab";
 
 export default function ActionTableApp() {
   const [actors, setActors] = useState([
@@ -232,9 +234,23 @@ export default function ActionTableApp() {
 
   function updateSavedActor(index, field, value) {
     setSavedActors((old) =>
-      old.map((actor, i) =>
-        i === index ? { ...actor, [field]: value } : actor
-      )
+      old.map((actor, i) => {
+        if (i === index) {
+          const updatedActor = { ...actor, [field]: value };
+
+          // If the actor is unique and the name is being updated, update it in the actors list
+          if (field === "actor" && actor.unique) {
+            setActors((oldActors) =>
+              oldActors.map((a) =>
+                a.name === actor.actor ? { ...a, name: value } : a
+              )
+            );
+          }
+
+          return updatedActor;
+        }
+        return actor;
+      })
     );
   }
 
@@ -272,384 +288,44 @@ export default function ActionTableApp() {
 
       {/* Tab Content */}
       {activeTab === "combat" && (
-        <div style={containerStyle}>
-          {/* Left: Table */}
-          <div style={tableContainerStyle}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}></th>
-                  <th style={thStyle}>Actor</th>
-                  <th style={thStyle}>Initiative</th> {/* Moved Initiative column */}
-                  <th style={thStyle}>Action</th>
-                  <th style={thStyle}>Target</th>
-                  <th style={thStyle}>Speed</th>
-                  <th style={thStyle}>Standstill / Moving</th>
-                  <th style={thStyle} aria-label="Remove row"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td style={tdStyle}>
-                      {actors.find((a) => a.name === row.actor)?.type || ""}
-                    </td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.actor}
-                        onChange={(e) =>
-                          updateRow(row.id, "actor", e.target.value)
-                        }
-                        style={selectStyle}
-                      >
-                        <option value="" disabled>
-                          Select actor
-                        </option>
-                        {actors.map((a, i) => (
-                          <option key={i} value={a.name}>
-                            {a.name || "(empty)"}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.initiative} // Initiative field
-                        onChange={(e) => updateRow(row.id, "initiative", e.target.value)}
-                        style={selectStyle}
-                      >
-                        <option value="0">0</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                      </select>
-                    </td>
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={row.action}
-                        onChange={(e) =>
-                          updateRow(row.id, "action", e.target.value)
-                        }
-                        placeholder="Action"
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={row.target}
-                        onChange={(e) =>
-                          updateRow(row.id, "target", e.target.value)
-                        }
-                        placeholder="Target"
-                        style={inputStyle}
-                      />
-                    </td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.speed}
-                        onChange={(e) => updateRow(row.id, "speed", e.target.value)}
-                        style={selectStyle}
-                      >
-                        <option value="fast">fast</option>
-                        <option value="normal">normal</option>
-                        <option value="slow">slow</option>
-                      </select>
-                    </td>
-                    <td style={tdStyle}>
-                      <select
-                        value={row.moveState}
-                        onChange={(e) => updateRow(row.id, "moveState", e.target.value)}
-                        style={selectStyle}
-                      >
-                        <option value="standstill">standstill</option>
-                        <option value="moving">moving</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Right: Actor List */}
-          <div style={actorListStyle}>
-            <h2 style={{ marginTop: 0 }}>
-              <b>Actors</b>
-            </h2>
-            {actors.map((actor, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: 8,
-                  gap: 8,
-                }}
-              >
-                <input
-                  type="text"
-                  value={actor.name}
-                  onChange={(e) => updateActorName(i, e.target.value)}
-                  placeholder={`Actor ${i + 1} name`}
-                  style={{ ...inputStyle, flexGrow: 1 }}
-                />
-                <select
-                  value={actor.type}
-                  onChange={(e) => updateActorType(i, e.target.value)}
-                  style={{ ...selectStyle, width: 90 }}
-                >
-                  <option value="NPC">NPC</option>
-                  <option value="Player">Player</option>
-                </select>
-                <button
-                  onClick={() => removeActor(i)}
-                  aria-label={`Remove actor ${actor.name || "empty"}`}
-                  style={removeButtonStyle}
-                  type="button"
-                >
-                  &minus;
-                </button>
-              </div>
-            ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <button
-                onClick={addActor}
-                style={{ ...buttonStyle, flexGrow: 1 }}
-                type="button"
-              >
-                + Add Actor
-              </button>
-
-              {!showSavedActorDropdown ? (
-                <button
-                  onClick={() => {
-                    if (savedActors.some((actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor)))) {
-                      setShowSavedActorDropdown(true);
-                    }
-                  }}
-                  style={{
-                    ...buttonStyle,
-                    flexGrow: 1,
-                    backgroundColor: savedActors.some(
-                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
-                    )
-                      ? "#1e90ff" // Enabled color
-                      : "#ccc", // Disabled grey color
-                    cursor: savedActors.some(
-                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
-                    )
-                      ? "pointer"
-                      : "not-allowed", // Change cursor when disabled
-                  }}
-                  type="button"
-                  disabled={
-                    !savedActors.some(
-                      (actor) => !(actor.unique && rows.some((row) => row.actor === actor.actor))
-                    )
-                  }
-                >
-                  + Add a Saved Actor
-                </button>
-              ) : (
-                <div ref={dropdownRef} style={{ position: "relative", flexGrow: 1 }}>
-                  <div
-                    style={{
-                      border: "1px solid #ccc",
-                      borderRadius: 4,
-                      backgroundColor: "white",
-                      position: "absolute",
-                      zIndex: 10,
-                      width: "100%",
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                    }}
-                  >
-                    {savedActors
-                      .filter(
-                        (actor) =>
-                          !(actor.unique && rows.some((row) => row.actor === actor.actor))
-                      )
-                      .map((actor, index) => (
-                        <div
-                          key={index}
-                          onClick={() => {
-                            addSavedActorToActors(actor);
-                          }}
-                          style={{
-                            padding: "8px",
-                            cursor: "pointer",
-                            borderBottom: "1px solid #eee",
-                            backgroundColor: "white", // Default background
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = "#f0f0f0"; // Highlight on hover
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = "white"; // Reset background
-                          }}
-                        >
-                          {actor.actor || "(Unnamed)"} - {actor.type}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <CombatTab
+          rows={rows}
+          actors={actors}
+          savedActors={savedActors}
+          addActor={addActor}
+          updateRow={updateRow}
+          updateActorName={updateActorName}
+          updateActorType={updateActorType}
+          removeActor={removeActor}
+          addSavedActorToActors={addSavedActorToActors}
+          showSavedActorDropdown={showSavedActorDropdown}
+          setShowSavedActorDropdown={setShowSavedActorDropdown}
+          dropdownRef={dropdownRef}
+          buttonStyle={buttonStyle}
+          selectStyle={selectStyle}
+          inputStyle={inputStyle}
+          actorListStyle={actorListStyle}
+          tableStyle={tableStyle}
+          thStyle={thStyle}
+          tdStyle={tdStyle}
+        />
       )}
 
       {activeTab === "savedActors" && (
-        <div>
-          <h2>Saved Actors</h2>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}></th>
-                <th style={thStyle}>Actor</th>
-                <th style={thStyle}>Type</th>
-                <th style={thStyle}>Hostility</th>
-                <th style={thStyle}>Unique</th>
-              </tr>
-            </thead>
-            <tbody>
-              {savedActors.map((actor, index) => (
-                <tr key={index}>
-                  <td style={tdStyle}>
-                    <button
-                      onClick={() => toggleRowExpansion(index)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 16,
-                      }}
-                      aria-label={`Toggle details for ${actor.actor || "Unnamed"}`}
-                    >
-                      {expandedRows.includes(index) ? "▼" : "▶"}
-                    </button>
-                  </td>
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      value={actor.actor}
-                      onChange={(e) =>
-                        updateSavedActor(index, "actor", e.target.value)
-                      }
-                      placeholder="Actor Name"
-                      style={inputStyle}
-                      ref={
-                        index === savedActors.length - 1
-                          ? newActorInputRef
-                          : null
-                      } // Attach ref to the last actor
-                    />
-                  </td>
-                  <td style={tdStyle}>
-                    <select
-                      value={actor.type}
-                      onChange={(e) =>
-                        updateSavedActor(index, "type", e.target.value)
-                      }
-                      style={selectStyle}
-                    >
-                      <option value="NPC">NPC</option>
-                      <option value="Player">Player</option>
-                    </select>
-                  </td>
-                  <td style={tdStyle}>
-                    <select
-                      value={actor.hostility}
-                      onChange={(e) =>
-                        updateSavedActor(index, "hostility", e.target.value)
-                      }
-                      style={selectStyle}
-                    >
-                      <option value="Neutral">Neutral</option>
-                      <option value="Friendly">Friendly</option>
-                      <option value="Hostile">Hostile</option>
-                    </select>
-                  </td>
-                  <td style={tdStyle}>
-                    <label style={{ display: "inline-block", position: "relative", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={actor.unique || false}
-                        onChange={(e) =>
-                          updateSavedActor(index, "unique", e.target.checked)
-                        }
-                        style={{
-                          opacity: 0, // Hide the default checkbox
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
-                          width: "100%",
-                          height: "100%",
-                          cursor: "pointer",
-                          zIndex: 1, // Ensure it is clickable
-                        }}
-                      />
-                      <span
-                        style={{
-                          display: "inline-block",
-                          width: 16,
-                          height: 16,
-                          backgroundColor: "white", // White background when unchecked
-                          border: "1px solid #ccc",
-                          borderRadius: 4,
-                          position: "relative",
-                        }}
-                      >
-                        {actor.unique && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: "50%",
-                              left: "50%",
-                              transform: "translate(-50%, -50%)",
-                              width: 10, // Adjusted size for better fit
-                              height: 10, // Adjusted size for better fit
-                              backgroundColor: "#1e90ff", // Blue checkmark
-                              borderRadius: 2, // Slight rounding for better appearance
-                            }}
-                          ></span>
-                        )}
-                      </span>
-                    </label>
-                  </td>
-                  <td style={tdStyle}>
-                    <button
-                      onClick={() => {
-                        setSavedActors((old) => old.filter((_, i) => i !== index));
-                      }}
-                      style={{
-                        backgroundColor: "#ff4d4f",
-                        color: "white",
-                        border: "none",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                        padding: "4px 8px",
-                        fontSize: 14,
-                      }}
-                      aria-label={`Remove saved actor ${actor.actor || "Unnamed"}`}
-                    >
-                      &minus;
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            onClick={addSavedActor}
-            style={{ ...buttonStyle, marginTop: 12 }}
-            type="button"
-          >
-            + Add Saved Actor
-          </button>
-        </div>
+        <SavedActorsTab
+          savedActors={savedActors}
+          addSavedActor={addSavedActor}
+          updateSavedActor={updateSavedActor}
+          toggleRowExpansion={toggleRowExpansion}
+          expandedRows={expandedRows}
+          buttonStyle={buttonStyle}
+          tableStyle={tableStyle}
+          thStyle={thStyle}
+          tdStyle={tdStyle}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+          newActorInputRef={newActorInputRef}
+        />
       )}
     </div>
   );
