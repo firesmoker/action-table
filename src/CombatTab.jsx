@@ -145,7 +145,32 @@ export default function CombatTab({
               value={actor.name}
               onChange={(e) => updateActorName(i, e.target.value)}
               placeholder={`Actor ${i + 1} name`}
-              style={{ ...inputStyle, flexGrow: 1 }}
+              style={{
+                ...inputStyle,
+                flexGrow: 1,
+                backgroundColor: savedActors.some(
+                  (savedActor) =>
+                    savedActor.unique && savedActor.actor === actor.name
+                )
+                  ? "#f0f0f0" // Light grey background for disabled fields
+                  : "white", // Default background for editable fields
+                cursor: savedActors.some(
+                  (savedActor) =>
+                    savedActor.unique && savedActor.actor === actor.name
+                )
+                  ? "not-allowed" // Show "not-allowed" cursor for disabled fields
+                  : "text", // Default cursor for editable fields
+                userSelect: savedActors.some(
+                  (savedActor) =>
+                    savedActor.unique && savedActor.actor === actor.name
+                )
+                  ? "none" // Prevent text selection for disabled fields
+                  : "auto", // Allow text selection for editable fields
+              }}
+              disabled={savedActors.some(
+                (savedActor) =>
+                  savedActor.unique && savedActor.actor === actor.name
+              )} // Disable if the actor is unique
             />
             <select
               value={actor.type}
