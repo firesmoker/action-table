@@ -20,11 +20,26 @@ export default function CombatTab({
   tableStyle,
   thStyle,
   tdStyle,
+  sortRows, // Receive sortRows as a prop
 }) {
   return (
     <div style={{ display: "flex", gap: 24, padding: 20 }}>
       {/* Left: Table */}
       <div style={{ flex: 1 }}>
+        {/* Sort Rows Button */}
+        <button
+          onClick={sortRows} // Call the sortRows function
+          style={{
+            ...buttonStyle,
+            marginBottom: 12,
+            backgroundColor: "#1e90ff",
+            color: "white",
+          }}
+          type="button"
+        >
+          Sort Rows
+        </button>
+
         <table style={tableStyle}>
           <thead>
             <tr>

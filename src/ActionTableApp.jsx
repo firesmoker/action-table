@@ -268,6 +268,27 @@ export default function ActionTableApp() {
     );
   }
 
+  function sortRows() {
+    setRows((oldRows) =>
+      [...oldRows].sort((a, b) => {
+        // First priority: Speed (fast > normal > slow)
+        const speedOrder = { fast: 3, normal: 2, slow: 1 };
+        if (speedOrder[b.speed] !== speedOrder[a.speed]) {
+          return speedOrder[b.speed] - speedOrder[a.speed];
+        }
+
+        // Second priority: Standstill / Moving (standstill > moving)
+        const moveStateOrder = { standstill: 2, moving: 1 };
+        if (moveStateOrder[b.moveState] !== moveStateOrder[a.moveState]) {
+          return moveStateOrder[b.moveState] - moveStateOrder[a.moveState];
+        }
+
+        // Last priority: Initiative (highest number first)
+        return b.initiative - a.initiative;
+      })
+    );
+  }
+
   return (
     <div>
       {/* Tabs at the top */}
@@ -308,6 +329,7 @@ export default function ActionTableApp() {
           tableStyle={tableStyle}
           thStyle={thStyle}
           tdStyle={tdStyle}
+          sortRows={sortRows} // Pass the sortRows function
         />
       )}
 
